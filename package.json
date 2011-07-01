@@ -1,0 +1,12 @@
+{
+    "name": "shots",
+    "version": "1.0.0",
+    "bin": {
+        "shots": "./bin/shots"
+    },
+    "dependencies": {
+        "expresso": "https://github.com/kkaefer/expresso/tarball/stop_listening_servers",
+        "diff_match_patch": "0.1.x"
+    },
+    "preferGlobal": true
+}

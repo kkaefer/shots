@@ -1,0 +1,56 @@
+#!/usr/bin/env node
+
+var dmp = new (require('diff_match_patch')).diff_match_patch();
+
+function compactJSON(obj) {
+    // Stringify JSON so that all keys are in order.
+    var json = JSON.stringify(obj, function(key, val) {
+        if (val !== null && typeof val === 'object' && !Array.isArray(val)) {
+            var keys = Object.keys(val), result = {};
+            keys.sort().forEach(function(key) { result[key] = val[key]; });
+            return result;
+        }
+        return val;
+    }, 4);
+
+    // Compact the representation.
+    var matcher = /[\{\[]\n(\s+)[^\n]+\n(?:\1[^\s][^\n]*\n)*(\s+)[\}\]]/g;
+    var changed = true;
+    function replacer(obj) {
+        var compacted = obj.replace(/(,)?\n\s*/g, '$1 ');
+        if (compacted.length > 60) return obj;
+        changed = true;
+        return compacted;
+    };
+
+    while (changed) {
+        changed = false;
+        json = json.replace(matcher, replacer);
+    }
+
+    return json;
+}
+
+// Override toString function to show actual differences.
+require('assert').AssertionError.prototype.toString = function() {
+    if (this.message) {
+        return [this.name + ':', this.message].join(' ');
+    } else {
+        var expected = compactJSON(this.expected).replace(/,\n/g, '\n');
+        var actual = compactJSON(this.actual).replace(/,\n/g, '\n');
+        var map = dmp.diff_linesToChars(expected, actual);
+        var diffs = dmp.diff_main(map[0], map[1], false);
+        dmp.diff_charsToLines(diffs, map[2]);
+        var diff = diffs.map(function(change) {
+            if (change[0] > 0) return '\033[31m' + change[1] + '\033[0m';
+            else if (change[0] < 0) return '\033[32m' + change[1] + '\033[0m';
+            else return change[1];
+        }).join('');
+        
+        diff = diff.replace(/([^\{\[])(\n(?:.\[\d+m)*\s*["\{\[\d])/g, '$1,$2');
+
+        return this.name + ':\n' + diff;
+    }
+};
+
+require('expresso/bin/expresso');
